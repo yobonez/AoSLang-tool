@@ -1,19 +1,50 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+
 #include "aoslang_io.h"
 #include "aoslang_types.h"
 
-void aoslang_read(FILE* langfile_ptr)
+int check_header(FILE* langfile_ptr)
 {
+	char header[5];
+
+	if (fgets(header, 5, langfile_ptr) == NULL) { printf("Error occured while trying to check the header."); return -1; };
+	if (strcmp(header, "STR0") != 0)            { return -1; }
+	rewind(langfile_ptr);
+
+	return 0;
 }
 
-int aoslang_export(FILE* langfile_ptr)
+void get_next_string(FILE* fptr, char* buffer, size_t until_EOF, size_t* i, size_t zero_align)
 {
-	// create destination file
-	FILE* destination_file;
-	if ((destination_file = _fsopen("AoSLangExport.txt", "wb", _SH_DENYWR)) == NULL)
+	for (; *i < until_EOF; (*i)++)
 	{
+		char c = fgetc(fptr);
+		if (c != '\0'){
+			buffer[*i - zero_align] = c;
+		}
+		else {
+			buffer[*i - zero_align] = '\n';           // insert newline before \0
+			buffer[*i + 1 - zero_align] = c;          // \0
+			(*i)++;                                   // when breaking the i still needs to be incremented
+			break;
+		}
+		if (c == '\n') buffer[*i - zero_align] = '`'; // some strings already have newlines in them, i have to preserve them somehow for later
+	}
+}
+
+
+int aoslang_read(FILE* langfile_ptr, size_t string_count)
+{
+	//AosLangEntry current_string = { 0 };
+}
+
+// will need to detect string amount automatically (i think its doable)
+int aoslang_export(FILE* langfile_ptr, size_t string_count)
+{
+	FILE* destination_file;
+	if ((destination_file = _fsopen("AoSLangExport.txt", "wb", _SH_DENYWR)) == NULL) {
 		printf("Error opening file: %s", "AoSLangExport.txt");
 		return -1;
 	}
@@ -25,29 +56,19 @@ int aoslang_export(FILE* langfile_ptr)
 
 	size_t langfile_size = ftell(langfile_ptr);
 
-	fseek(langfile_ptr, 0x180, SEEK_SET);
-	size_t current_pos = ftell(langfile_ptr);
+	fseek(langfile_ptr, string_count, SEEK_SET);
+	size_t file_cursor_pos = ftell(langfile_ptr);
 
-	char current_string[MAX_STR_LEN];
-
-	size_t string_zero_pos = 0;
+	char string_to_write[MAX_STR_LEN];
 	size_t i = 0;
-	while (i < (langfile_size - current_pos)) {
-		for (i = 0; i < (langfile_size - current_pos); i++)
-		{
-			char c = fgetc(langfile_ptr);
-			if (c != '\0') {
-				current_string[i - string_zero_pos] = c;
-			}
-			else {
-				current_string[i - string_zero_pos] = '\n'; // insert newline before \0
-				current_string[i - string_zero_pos + 1] = c; // \0
+	size_t zero_align = 0;
+	size_t chars_to_EOF = langfile_size - file_cursor_pos;
 
-				fwrite(current_string, sizeof(char), strlen(current_string), destination_file);
-				current_string[0] = '\0';
-				string_zero_pos = i + 1;
-			}
-		}
+	while (i < chars_to_EOF) {
+		get_next_string(langfile_ptr, string_to_write, chars_to_EOF, &i, zero_align);
+		fwrite(string_to_write, sizeof(char), strlen(string_to_write), destination_file);
+		string_to_write[0] = '\0';
+		zero_align = i;
 	}
 
 	fclose(langfile_ptr);
@@ -58,6 +79,4 @@ int aoslang_export(FILE* langfile_ptr)
 
 void aoslang_pack()
 {
-	// U can just count amount of strings, to determine how much file offsets to prepare.
-	// Kinda obvious, but i write it here just in case i forget and make some weird overcomplicated ass implementation.
 }
