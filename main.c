@@ -13,26 +13,25 @@ int main(int argc, char* argv[])
 		if (argc < 3 || !*argv[i]) { printf("Usage: %s <export|read|pack> <filename> \n", argv[0]); return 1; }
 	}
 
-	const char* provided_filename = argv[2];
+	const char* mode = argv[1];
+	const char* filename = argv[2];
 
-	if (strcmp(argv[1], "export") == 0) {
-		FILE* aoslang_file = open_aoslang(provided_filename);
+	if (strcmp(mode, "export") == 0) {
+		FILE* aoslang_file = open_aoslang(filename);
 
-		if (aoslang_file == NULL || aoslang_export(aoslang_file) != 0)
+		if (aoslang_file == NULL || aoslang_export(aoslang_file, mode) != 0)
 		{ printf("An error occured.\n"); return -1; }
 	}
-	if (strcmp(argv[1], "read") == 0) {
-		FILE* aoslang_file = open_aoslang(provided_filename);
+	if (strcmp(mode, "read") == 0) {
+		FILE* aoslang_file = open_aoslang(filename);
 
-		if (aoslang_file == NULL || aoslang_read(aoslang_file) != 0)
+		if (aoslang_file == NULL || aoslang_read(aoslang_file, mode) != 0)
 		{ printf("An error occured.\n"); return -1; }
 	}
-	if (strcmp(argv[1], "pack") == 0) {
+	if (strcmp(mode, "pack") == 0) {
 		printf("\"pack\" Not implemented yet...");
 		return -1;
 	}
 
-	printf("Done. Press any key to continue...");
-	getchar();
 	return 0;
 }
