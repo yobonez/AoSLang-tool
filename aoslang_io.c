@@ -30,12 +30,11 @@ int check_header(FILE* langfile_ptr)
 	return 0;
 }
 
-FILE* open_aoslang(const char* aoslang_filename)
+FILE* aoslang_open(const char* filename)
 {
 	FILE* aoslang_file;
 
-	if ((aoslang_file = _fsopen(aoslang_filename, "rb", _SH_DENYWR)) == NULL) { printf("Error opening file: %s", aoslang_filename); return NULL; }
-
+	if ((aoslang_file = _fsopen(filename, "rb", _SH_DENYWR)) == NULL) { printf("Error opening file: %s", filename); return NULL; }
 	if (check_header(aoslang_file) != 0) { printf("The selected file is not a valid AoSLang file or is corrupted."); return NULL; }
 
 	return aoslang_file;
@@ -47,6 +46,11 @@ void get_next_string(FILE* fptr, char* buffer, size_t until_EOF, size_t* i, size
 	for (; *i < until_EOF; (*i)++)
 	{
 		char c = fgetc(fptr);
+		// replace \n with \0 when packing
+		if (c == '\n' && strcmp(mode, "pack") == 0) {
+			buffer[*i - zero_align] = '\0';   
+			break;
+		}
 		if (c != '\0'){
 			buffer[*i - zero_align] = c;
 		}
@@ -61,6 +65,7 @@ void get_next_string(FILE* fptr, char* buffer, size_t until_EOF, size_t* i, size
 			break;
 		}
 		if (c == '\n' && strcmp(mode, "export") == 0) buffer[*i - zero_align] = '`'; // some strings already have newlines in them, i have to preserve them somehow for later
+		if (c == '`' && strcmp(mode, "pack") == 0) buffer[*i - zero_align] = '\n';   // bring back newlines that would be intentionally put in aoslang file
 	}
 }
 
@@ -75,7 +80,7 @@ int aoslang_read(FILE* langfile_ptr, const char* mode)
 
 	int* offsets = (int*)malloc(sizeof(int) * strings_amount);
 
-	if (entries == NULL || offsets == NULL) { printf("malloc error");  return -1; }
+	if (entries == NULL || offsets == NULL) { printf("malloc error\n");  return -1; }
 
 	for (size_t i = 0; i < strings_amount; i++)
 	{
@@ -111,6 +116,7 @@ int aoslang_read(FILE* langfile_ptr, const char* mode)
 		printf("-----------------------------------------------------------------------\n");
 	}
 
+	fclose(langfile_ptr);
 	free(offsets);
 	free(entries);
 	offsets = NULL;
@@ -126,7 +132,7 @@ int aoslang_export(FILE* langfile_ptr, const char* mode)
 
 	FILE* destination_file;
 	if ((destination_file = _fsopen("AoSLangExport.txt", "wb", _SH_DENYWR)) == NULL) {
-		printf("Error opening file: %s", "AoSLangExport.txt");
+		printf("Error opening file: %s\n", "AoSLangExport.txt");
 		return -1;
 	}
 
@@ -150,10 +156,74 @@ int aoslang_export(FILE* langfile_ptr, const char* mode)
 	fclose(langfile_ptr);
 	fclose(destination_file);
 	
+	printf("Done.\n");
 	return 0;
 }
 
-void aoslang_pack()
+int aoslang_pack(const char* filename, const char* mode)
 {
-	//char header_and_unknown[8] = "STR0_\0\0\0";
+	size_t strings_amount = 0;
+	char lang_string[MAX_STR_LEN] = { 0 };
+
+	FILE* strings_file;
+	if ((strings_file = _fsopen(filename, "rt", SH_DENYWR)) == NULL) { printf("Error opening file: %s\n", filename); return -1; }
+
+	while (fgets(lang_string, MAX_STR_LEN, strings_file) != NULL) {
+		strings_amount++;
+	}
+
+	size_t strings_desired_loc = strings_amount * 4 + 8; // where the actual strings start in the file (after offsets)
+	rewind(strings_file);
+
+	AosLangEntry* entries = (AosLangEntry*)malloc(sizeof(AosLangEntry) * strings_amount);
+	if (entries == NULL) { printf("malloc/memset error\n"); return -1; }
+
+	size_t str_counter = 0;
+	int current_offset = strings_desired_loc;
+
+	size_t until_EOF = aoslang_get_size(strings_file);
+	rewind(strings_file);
+	size_t i = 0;
+	size_t zero_align = 0;
+	while (str_counter < strings_amount) 
+	{
+		get_next_string(strings_file, lang_string, until_EOF, &i, zero_align, mode);
+
+		AosLangEntry entry = { 0 };
+		entry.offset = strings_desired_loc;
+		strcpy_s(entry.lang_string, sizeof(lang_string), lang_string);
+		memcpy(&entries[str_counter], &entry, sizeof(AosLangEntry));
+
+		strings_desired_loc += strlen(lang_string) + 1;
+		str_counter++;
+		zero_align = i;
+	}
+
+	// write
+	FILE* out_aoslang;
+	if ((out_aoslang = _fsopen("AoSLang-PACKED.bin", "wb", SH_DENYWR)) == NULL) { printf("Error opening file: %s\n", "AoSLang-PACKED.bin"); return -1; }
+
+	fwrite("STR0_\0\0\0", sizeof(char), 8, out_aoslang); // write 4 byte header and 4 bytes of unknown data
+
+	printf("Writing offsets...\n");
+	for (size_t i = 0; i < strings_amount; i++)
+	{
+		fwrite(&entries[i].offset, sizeof(int), 1, out_aoslang);
+	}
+	
+	printf("Writing strings...\n");
+	fseek(out_aoslang, entries[0].offset, SEEK_SET);
+	for (size_t i = 0; i < strings_amount; i++)
+	{
+		size_t str_size = strlen(entries[i].lang_string);
+		int result = fwrite(entries[i].lang_string, sizeof(char), str_size + 1, out_aoslang);
+	}
+
+	fclose(strings_file);
+	fclose(out_aoslang);
+	free(entries);
+	entries = NULL;
+
+	printf("Done.\n");
+	return 0;
 }

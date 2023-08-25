@@ -17,20 +17,17 @@ int main(int argc, char* argv[])
 	const char* filename = argv[2];
 
 	if (strcmp(mode, "export") == 0) {
-		FILE* aoslang_file = open_aoslang(filename);
+		FILE* aoslang_file = aoslang_open(filename);
 
-		if (aoslang_file == NULL || aoslang_export(aoslang_file, mode) != 0)
-		{ printf("An error occured.\n"); return -1; }
+		if (aoslang_file == NULL || aoslang_export(aoslang_file, mode) != 0) { printf("An error occured.\n"); return -1; }
 	}
 	if (strcmp(mode, "read") == 0) {
-		FILE* aoslang_file = open_aoslang(filename);
+		FILE* aoslang_file = aoslang_open(filename);
 
-		if (aoslang_file == NULL || aoslang_read(aoslang_file, mode) != 0)
-		{ printf("An error occured.\n"); return -1; }
+		if (aoslang_file == NULL || aoslang_read(aoslang_file, mode) != 0) { printf("An error occured.\n"); return -1; }
 	}
 	if (strcmp(mode, "pack") == 0) {
-		printf("\"pack\" Not implemented yet...");
-		return -1;
+		if (aoslang_pack(filename, mode) != 0) { printf("An error occured.\n"); return -1; }
 	}
 
 	return 0;
