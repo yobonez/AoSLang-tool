@@ -23,7 +23,7 @@ int check_header(FILE* langfile_ptr)
 {
 	char header[5];
 
-	if (fgets(header, 5, langfile_ptr) == NULL) { printf("Error occured while trying to check the header."); return -1; }
+	if (fgets(header, 5, langfile_ptr) == NULL) { printf("Error occured while trying to check the header.\n"); return -1; }
 	if (strcmp(header, "STR0") != 0) { return -1; }
 	rewind(langfile_ptr);
 
@@ -34,8 +34,8 @@ FILE* aoslang_open(const char* filename)
 {
 	FILE* aoslang_file;
 
-	if ((aoslang_file = _fsopen(filename, "rb", _SH_DENYWR)) == NULL) { printf("Error opening file: %s", filename); return NULL; }
-	if (check_header(aoslang_file) != 0) { printf("The selected file is not a valid AoSLang file or is corrupted."); return NULL; }
+	if ((aoslang_file = _fsopen(filename, "rb", _SH_DENYWR)) == NULL) { printf("Error opening file: %s\n", filename); return NULL; }
+	if (check_header(aoslang_file) != 0) { printf("The selected file is not a valid AoSLang file or is corrupted.\n"); return NULL; }
 
 	return aoslang_file;
 }
@@ -124,15 +124,15 @@ int aoslang_read(FILE* langfile_ptr, const char* mode)
 	return 0;
 }
 
-int aoslang_export(FILE* langfile_ptr, const char* mode)
+int aoslang_export(FILE* langfile_ptr, const char* outfilename, const char* mode)
 {
 	// determine amount of strings in lang file and its first string offset
 	size_t strings_loc = aoslang_get_first_offset(langfile_ptr);
 	size_t amount_of_strings = (strings_loc - 8) / 4;
 
 	FILE* destination_file;
-	if ((destination_file = _fsopen("AoSLangExport.txt", "wb", _SH_DENYWR)) == NULL) {
-		printf("Error opening file: %s\n", "AoSLangExport.txt");
+	if ((destination_file = _fsopen(outfilename, "wb", _SH_DENYWR)) == NULL) {
+		printf("Error opening file: %s\n", outfilename);
 		return -1;
 	}
 
@@ -160,7 +160,7 @@ int aoslang_export(FILE* langfile_ptr, const char* mode)
 	return 0;
 }
 
-int aoslang_pack(const char* filename, const char* mode)
+int aoslang_pack(const char* filename, const char* outfilename, const char* mode)
 {
 	size_t strings_amount = 0;
 	char lang_string[MAX_STR_LEN] = { 0 };
@@ -201,7 +201,7 @@ int aoslang_pack(const char* filename, const char* mode)
 
 	// write
 	FILE* out_aoslang;
-	if ((out_aoslang = _fsopen("AoSLang-PACKED.bin", "wb", SH_DENYWR)) == NULL) { printf("Error opening file: %s\n", "AoSLang-PACKED.bin"); return -1; }
+	if ((out_aoslang = _fsopen(outfilename, "wb", SH_DENYWR)) == NULL) { printf("Error opening file: %s\n", outfilename); return -1; }
 
 	fwrite("STR0_\0\0\0", sizeof(char), 8, out_aoslang); // write 4 byte header and 4 bytes of unknown data
 
