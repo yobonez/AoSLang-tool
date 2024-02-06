@@ -1,7 +1,5 @@
 #pragma once
 #include <stdio.h>
-#include <stdlib.h>
-#include <share.h>
 
 //int check_header(FILE* langfile_ptr);
 FILE* aoslang_open(const char* aoslang_filename);

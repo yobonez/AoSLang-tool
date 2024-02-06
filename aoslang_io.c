@@ -1,6 +1,7 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
+#include <share.h>
 
 #include "aoslang_io.h"
 #include "aoslang_types.h"
@@ -75,6 +76,7 @@ int aoslang_read(FILE* langfile_ptr, const char* mode)
 	size_t strings_loc = aoslang_get_first_offset(langfile_ptr);
 	size_t strings_amount = (strings_loc - 8) / 4;
 
+	int offsets_start = 8;
 	fseek(langfile_ptr, 8, SEEK_SET); // jump over 4 byte header and 4 bytes of unknown data
 	AosLangEntry* entries = (AosLangEntry*)malloc(sizeof(AosLangEntry) * strings_amount);
 
@@ -112,7 +114,7 @@ int aoslang_read(FILE* langfile_ptr, const char* mode)
 	printf("-----------------------------------------------------------------------\n");
 	for (size_t i = 0; i < strings_amount; i++)
 	{
-		printf("Offset: 0x%x\nContent: %s\n", entries[i].offset, entries[i].lang_string);
+		printf("Offset array [%i]: 0x%x -> 0x%x:\n%s\n", i, offsets_start + (i * sizeof(int)), entries[i].offset, entries[i].lang_string);
 		printf("-----------------------------------------------------------------------\n");
 	}
 
